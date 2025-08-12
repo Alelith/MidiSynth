@@ -30,6 +30,7 @@
  * @return A pointer to the generated waveform data (PCM samples).
  */
 #define generate_wave(first_arg, ...) _Generic((first_arg), \
+	char: generate_noise_wave, \
 	int: generate_wave_by_note, \
 	float: generate_wave_by_frequency, \
 	double: generate_wave_by_frequency \
@@ -76,6 +77,15 @@ typedef enum
  */
 t_note	get_note(const char *str);
 
+/**
+ * @brief Generate a noise waveform.
+ *
+ * @param c The character representing the type of noise ('w' for white, 'p' for pink, 'b' for brown).
+ * @param seconds The duration of the noise in seconds.
+ *
+ * @return A pointer to the generated noise waveform data (PCM samples).
+ */
+short	*generate_noise_wave(char c, unsigned int seconds);
 
 /**
  * @brief Generate a waveform based on a musical note and its octave.

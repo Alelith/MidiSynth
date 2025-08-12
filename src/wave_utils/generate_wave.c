@@ -32,6 +32,36 @@ static float note_to_frequency(t_note note, int octave)
 	return frequency;
 }
 
+short *generate_noise_wave(char c, unsigned int seconds)
+{
+	unsigned int total_samples = SAMPLE_RATE * seconds;
+	short *samples = malloc(total_samples * sizeof(short));
+	if (!samples)
+		return 0;
+
+	// Generate diferent noise depending on the character
+	for (unsigned int i = 0; i < total_samples; i++)
+	{
+		switch (c)
+		{
+		case 'w': // White noise
+			samples[i] = (short)(rand() % 65536 - 32768);
+			break;
+		case 'p': // Pink noise
+			samples[i] = (short)(rand() % 65536 - 32768) / (i + 1);
+			break;
+		case 'b': // Brown noise
+			samples[i] = (short)(rand() % 65536 - 32768) / (i + 1) / (i + 1);
+			break;
+		default:
+			samples[i] = 0;
+			break;
+		}
+	}
+
+	return samples;
+}
+
 short *generate_wave_by_note(t_note note, int octave, t_waveform waveform, unsigned int seconds)
 {
 	float frequency = note_to_frequency(note, octave);
@@ -43,7 +73,7 @@ short *generate_wave_by_frequency(float frequency, t_waveform waveform, unsigned
 	unsigned int total_samples = SAMPLE_RATE * seconds;
 	short *samples = malloc(total_samples * sizeof(short));
 	if (!samples)
-		return NULL;
+		return 0;
 
 	for (unsigned int i = 0; i < total_samples; i++)
 	{
