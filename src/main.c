@@ -56,12 +56,5 @@ int main(void)
     short *samples;
 	short *stereo;
 
-	samples = generate_wave(3u);
-	stereo = mono_to_stereo(samples, 3);
-	play_sound(stereo, 3);
-
-	free(samples);
-	free(stereo);
-
     return 0;
 }
