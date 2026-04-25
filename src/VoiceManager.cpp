@@ -60,18 +60,17 @@ void	SynthVoice::noteOn(float frequency, float sampleRate, Waveform waveform)
 
 void	SynthVoice::noteOff() { env.state = ADSRState::RELEASE; env.currentTime = 0.0f; env.lastAmplitude = env.currentAmplitude; }
 
-VoiceManager::VoiceManager() : maxVoices(8) { voices.resize(maxVoices); }
+VoiceManager::VoiceManager() : maxVoices(8), sampleRate(88200.0f) { voices.resize(maxVoices); }
 
-VoiceManager::VoiceManager(int maxVoices) : maxVoices(maxVoices) { voices.resize(maxVoices); }
+VoiceManager::VoiceManager(int maxVoices, float sampleRate) : maxVoices(maxVoices), sampleRate(sampleRate) { voices.resize(maxVoices); }
 
-void	VoiceManager::noteOn(float frequency, float sampleRate, Waveform waveform)
+void	VoiceManager::noteOn(float frequency, Waveform waveform)
 {
-	for (int i = 0; i < maxVoices; ++i)
+	for (int i = 0; i < maxVoices; i++)
 	{
 		if (voices[i].env.state == ADSRState::OFF)
 		{
-			voices[i].osc = Oscilator(frequency, sampleRate, waveform);
-			voices[i].env.state = ADSRState::ATTACK;
+			voices[i].noteOn(frequency, sampleRate, waveform);
 			break;
 		}
 	}
@@ -79,13 +78,11 @@ void	VoiceManager::noteOn(float frequency, float sampleRate, Waveform waveform)
 
 void	VoiceManager::noteOff(float frequency)
 {
-	for (int i = 0; i < maxVoices; ++i)
+	for (int i = 0; i < maxVoices; i++)
 	{
 		if (voices[i].osc.getFrequency() == frequency && voices[i].env.state != ADSRState::OFF)
 		{
-			voices[i].env.state = ADSRState::RELEASE;
-			voices[i].env.currentTime = 0.0f;
-			voices[i].env.lastAmplitude = voices[i].env.currentAmplitude;
+			voices[i].noteOff();
 			break;
 		}
 	}
@@ -96,9 +93,8 @@ float	VoiceManager::nextSample()
 	float	sample = 0.0f;
 
 	for (int i = 0; i < maxVoices; ++i)
-	{
 		if (voices[i].env.state != ADSRState::OFF)
-			sample += voices[i].osc.nextSample() * voices[i].env.nextAmplitude(1.0f / 88200.0f);
-	}
+			sample += voices[i].osc.nextSample() * voices[i].env.nextAmplitude(1.0f / sampleRate);
+
 	return sample / maxVoices;
 }

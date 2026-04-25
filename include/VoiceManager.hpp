@@ -49,15 +49,17 @@ class VoiceManager
 {
 	public:
 		VoiceManager();
-		VoiceManager(int maxVoices);
+		VoiceManager(int maxVoices, float sampleRate = 88200.0f);
 		~VoiceManager() = default;
 
-		void	noteOn(float frequency, float sampleRate, Waveform waveform = Waveform::SINE);
+		void	noteOn(float frequency, Waveform waveform = Waveform::SINE);
 		void	noteOff(float frequency);
 		float	nextSample();
 	private:
 		vector<SynthVoice>	voices;
 		int					maxVoices;
+
+		float	sampleRate = 88200.0f;
 };
 
 #endif /* VOICEMANAGER_HPP */

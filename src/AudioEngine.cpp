@@ -88,7 +88,7 @@ void	AudioEngine::midiCallback(double timeStamp, std::vector<unsigned char> *mes
 	{
 		float frequency = 432.0f * std::pow(2.0f, (note - 69) / 12.0f);
 		std::cout << "Note On: " << (int)note << " Velocity: " << (int)velocity << " Frequency: " << frequency << " Hz" << std::endl;
-		engine->noteOn(frequency, Waveform::SAWTOOTH);
+		engine->noteOn(frequency, Waveform::SINE);
 	}
 	else if ((status == 0x80) || (status == 0x90 && velocity == 0)) // Note Off
 	{
