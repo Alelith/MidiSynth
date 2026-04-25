@@ -24,6 +24,7 @@ add_executable(MicroSynth
 	src/Oscilator.cpp
 	src/VoiceManager.cpp
 	src/TuningSys.cpp
+	src/RingBuffer.cpp
 )
 
 # Enlazar nuestro ejecutable con la librería de PortAudio
