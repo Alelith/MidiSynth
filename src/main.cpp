@@ -6,5 +6,7 @@
 int main()
 {
 	AudioEngine au;
+	au.setModulationIndex(250);
+	au.setModulationRatio(1.5);
 	std::cin.get();
 }

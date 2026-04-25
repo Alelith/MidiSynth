@@ -21,7 +21,7 @@ class Oscilator
 		Oscilator() = default;
 		Oscilator(float frequency, float sampleRate, Waveform waveform = Waveform::SINE);
 
-		float	nextSample();
+		float	nextSample(float modulation = 0.0f);
 		float	getFrequency() const;
 
 		static void	initWaveTables(int tableSize = 2048);

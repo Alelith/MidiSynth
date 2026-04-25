@@ -52,9 +52,13 @@ void	Envelope::start()
 	lastAmplitude = 0.0f;
 }
 
-void	SynthVoice::noteOn(float frequency, float sampleRate, Waveform waveform)
+float	SynthVoice::nextSample() { return carrier.nextSample(modulator.nextSample() * modulationIndex) * env.nextAmplitude(1.0f / 88200.0f); }
+
+void	SynthVoice::noteOn(float modulationIndex, float modulationRatio, float frequency, float sampleRate, Waveform waveform)
 {
-	osc = Oscilator(frequency, sampleRate, waveform);
+	carrier = Oscilator(frequency, sampleRate, waveform);
+	modulator = Oscilator(frequency * modulationRatio, sampleRate, Waveform::SINE);
+	this->modulationIndex = modulationIndex;
 	env.start();
 }
 
@@ -64,13 +68,13 @@ VoiceManager::VoiceManager() : maxVoices(8), sampleRate(88200.0f) { voices.resiz
 
 VoiceManager::VoiceManager(int maxVoices, float sampleRate) : maxVoices(maxVoices), sampleRate(sampleRate) { voices.resize(maxVoices); }
 
-void	VoiceManager::noteOn(float frequency, Waveform waveform)
+void	VoiceManager::noteOn(float modulationIndex, float modulationRatio, float frequency, Waveform waveform)
 {
 	for (int i = 0; i < maxVoices; i++)
 	{
 		if (voices[i].env.state == ADSRState::OFF)
 		{
-			voices[i].noteOn(frequency, sampleRate, waveform);
+			voices[i].noteOn(modulationIndex, modulationRatio, frequency, sampleRate, waveform);
 			break;
 		}
 	}
@@ -80,7 +84,7 @@ void	VoiceManager::noteOff(float frequency)
 {
 	for (int i = 0; i < maxVoices; i++)
 	{
-		if (voices[i].osc.getFrequency() == frequency && voices[i].env.state != ADSRState::OFF)
+		if (voices[i].carrier.getFrequency() == frequency && voices[i].env.state != ADSRState::OFF)
 		{
 			voices[i].noteOff();
 			break;
@@ -94,7 +98,7 @@ float	VoiceManager::nextSample()
 
 	for (int i = 0; i < maxVoices; ++i)
 		if (voices[i].env.state != ADSRState::OFF)
-			sample += voices[i].osc.nextSample() * voices[i].env.nextAmplitude(1.0f / sampleRate);
+			sample += voices[i].nextSample();
 
 	return sample / maxVoices;
 }

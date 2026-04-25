@@ -5,7 +5,7 @@ std::map<Waveform, std::vector<float>> Oscilator::waveTables;
 
 Oscilator::Oscilator(float frequency, float sampleRate, Waveform waveform) : frequency(frequency), sampleRate(sampleRate), phase(0.0), waveform(waveform) {}
 
-float	Oscilator::nextSample()
+float	Oscilator::nextSample(float modulation)
 {
 	float	tableIndex = (phase / (2.0 * M_PI)) * waveTables[waveform].size();
 	int		index0 = static_cast<int>(tableIndex) % waveTables[waveform].size();
@@ -14,7 +14,7 @@ float	Oscilator::nextSample()
 
 	float	sample = (1.0f - frac) * waveTables[waveform][index0] + frac * waveTables[waveform][index1];
 
-	phase += (2.0 * M_PI * frequency) / sampleRate;
+	phase += (2.0 * M_PI * (frequency + modulation)) / sampleRate;
 	if (phase >= (2.0 * M_PI))
 		phase -= (2.0 * M_PI);
 	return sample;

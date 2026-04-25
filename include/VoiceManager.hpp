@@ -35,13 +35,15 @@ struct Envelope
 	void	start();
 };
 
-
 struct SynthVoice
 {
-	Oscilator	osc;
+	Oscilator	carrier;
+	Oscilator	modulator;
+	float		modulationIndex;
 	Envelope	env;
 
-	void	noteOn(float frequency, float sampleRate, Waveform waveform = Waveform::SINE);
+	float	nextSample();
+	void	noteOn(float modulationIndex, float modulationRatio, float frequency, float sampleRate, Waveform waveform = Waveform::SINE);
 	void	noteOff();
 };
 
@@ -52,7 +54,7 @@ class VoiceManager
 		VoiceManager(int maxVoices, float sampleRate = 88200.0f);
 		~VoiceManager() = default;
 
-		void	noteOn(float frequency, Waveform waveform = Waveform::SINE);
+		void	noteOn(float modulationIndex, float modulationRatio, float frequency, Waveform waveform = Waveform::SINE);
 		void	noteOff(float frequency);
 		float	nextSample();
 	private:

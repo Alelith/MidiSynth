@@ -4,7 +4,7 @@
 
 AudioEngine::AudioEngine() : stream(nullptr) { Pa_Initialize(); start(); }
 
-AudioEngine::AudioEngine(string tuningFile, float baseFreq, int midiNoteOffset) : stream(nullptr), tuningSys(tuningFile, baseFreq, midiNoteOffset) { Pa_Initialize(); start(); }
+AudioEngine::AudioEngine(float modulationIndex, float modulationRatio, string tuningFile, float baseFreq, int midiNoteOffset) : stream(nullptr), modulationIndex(modulationIndex), modulationRatio(modulationRatio), tuningSys(tuningFile, baseFreq, midiNoteOffset) { Pa_Initialize(); start(); }
 
 AudioEngine::~AudioEngine() { stop(); Pa_Terminate(); }
 
@@ -66,9 +66,13 @@ bool	AudioEngine::stop()
 	return true;
 }
 
-void	AudioEngine::noteOn(float frequency, Waveform waveform) { voices.noteOn(frequency, waveform); }
+void	AudioEngine::noteOn(float frequency, Waveform waveform) { voices.noteOn(modulationIndex.load(), modulationRatio.load(), frequency, waveform); }
 
 void	AudioEngine::noteOff(float frequency) { voices.noteOff(frequency); }
+
+void	AudioEngine::setModulationIndex(float index) { modulationIndex.store(index); }
+
+void	AudioEngine::setModulationRatio(float ratio) { modulationRatio.store(ratio); }
 
 int	AudioEngine::paCallback(const void *inputBuffer, void *outputBuffer, unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags, void *userData)
 {
