@@ -4,6 +4,8 @@
 
 AudioEngine::AudioEngine() : stream(nullptr) { Pa_Initialize(); start(); }
 
+AudioEngine::AudioEngine(string tuningFile, float baseFreq, int midiNoteOffset) : stream(nullptr), tuningSys(tuningFile, baseFreq, midiNoteOffset) { Pa_Initialize(); start(); }
+
 AudioEngine::~AudioEngine() { stop(); Pa_Terminate(); }
 
 bool	AudioEngine::start()
@@ -64,7 +66,7 @@ bool	AudioEngine::stop()
 	return true;
 }
 
-void	AudioEngine::noteOn(float frequency, Waveform waveform) { voices.noteOn(frequency, sampleRate, waveform); }
+void	AudioEngine::noteOn(float frequency, Waveform waveform) { voices.noteOn(frequency, waveform); }
 
 void	AudioEngine::noteOff(float frequency) { voices.noteOff(frequency); }
 
@@ -80,19 +82,19 @@ void	AudioEngine::midiCallback(double timeStamp, std::vector<unsigned char> *mes
 		return;
 
 	AudioEngine	*engine = static_cast<AudioEngine*>(userData);
-	unsigned char status = message->at(0) & 0xF0;
-	unsigned char note = message->at(1);
-	unsigned char velocity = message->at(2);
+	unsigned char	status = message->at(0) & 0xF0;
+	unsigned char	note = message->at(1);
+	unsigned char	velocity = message->at(2);
 
 	if (status == 0x90 && velocity > 0) // Note On
 	{
-		float frequency = 432.0f * std::pow(2.0f, (note - 69) / 12.0f);
+		float	frequency = engine->tuningSys.getFrequency(note);
 		std::cout << "Note On: " << (int)note << " Velocity: " << (int)velocity << " Frequency: " << frequency << " Hz" << std::endl;
 		engine->noteOn(frequency, Waveform::SINE);
 	}
 	else if ((status == 0x80) || (status == 0x90 && velocity == 0)) // Note Off
 	{
-		float frequency = 432.0f * std::pow(2.0f, (note - 69) / 12.0f);
+		float	frequency = engine->tuningSys.getFrequency(note);
 		std::cout << "Note Off: " << (int)note << " Velocity: " << (int)velocity << " Frequency: " << frequency << " Hz" << std::endl;
 		engine->noteOff(frequency);
 	}

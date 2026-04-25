@@ -4,11 +4,15 @@
 # include <portaudio.h>
 # include <rtmidi/RtMidi.h>
 # include "VoiceManager.hpp"
+# include "TuningSys.hpp"
 
 class AudioEngine
 {
 	public:
+
+
 		AudioEngine();
+		AudioEngine(string tuningFile, float baseFreq = 432.0f, int midiNoteOffset = 69);
 		~AudioEngine();
 
 		bool	start();
@@ -19,7 +23,7 @@ class AudioEngine
 	private:
 		PaStream	*stream;
 		float		sampleRate = 88200.0f;
-		float		frequency = 432.0f; // A4 note
+		TuningSys	tuningSys;
 
 		RtMidiIn	midiIn;
 
