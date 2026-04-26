@@ -109,6 +109,8 @@ int	AudioEngine::processAudio(float *outputBuffer, unsigned long framesPerBuffer
 	for (unsigned long i = 0; i < framesPerBuffer; ++i)
 	{
 		float	sample = voices.nextSample();
+		sample *= 5.0f;
+		sample = std::tanh(sample);
 		audioBuffer.write(&sample, 1);
 		outputBuffer[i * 2] = sample;
 		outputBuffer[i * 2 + 1] = sample;
