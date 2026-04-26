@@ -2,9 +2,9 @@
 #include <iostream>
 #include <cmath>
 
-AudioEngine::AudioEngine() : stream(nullptr) { Pa_Initialize(); start(); }
+AudioEngine::AudioEngine(RingBuffer &buffer) : stream(nullptr), audioBuffer(buffer) { Pa_Initialize(); start(); }
 
-AudioEngine::AudioEngine(float modulationIndex, float modulationRatio, string tuningFile, float baseFreq, int midiNoteOffset) : stream(nullptr), modulationIndex(modulationIndex), modulationRatio(modulationRatio), tuningSys(tuningFile, baseFreq, midiNoteOffset) { Pa_Initialize(); start(); }
+AudioEngine::AudioEngine(RingBuffer &buffer, float modulationIndex, float modulationRatio, string tuningFile, float baseFreq, int midiNoteOffset) : stream(nullptr), audioBuffer(buffer), modulationIndex(modulationIndex), modulationRatio(modulationRatio), tuningSys(tuningFile, baseFreq, midiNoteOffset) { Pa_Initialize(); start(); }
 
 AudioEngine::~AudioEngine() { stop(); Pa_Terminate(); }
 
@@ -94,7 +94,7 @@ void	AudioEngine::midiCallback(double timeStamp, std::vector<unsigned char> *mes
 	{
 		float	frequency = engine->tuningSys.getFrequency(note);
 		std::cout << "Note On: " << (int)note << " Velocity: " << (int)velocity << " Frequency: " << frequency << " Hz" << std::endl;
-		engine->noteOn(frequency, Waveform::SINE);
+		engine->noteOn(frequency, Waveform::TRIANGLE);
 	}
 	else if ((status == 0x80) || (status == 0x90 && velocity == 0)) // Note Off
 	{
@@ -109,6 +109,7 @@ int	AudioEngine::processAudio(float *outputBuffer, unsigned long framesPerBuffer
 	for (unsigned long i = 0; i < framesPerBuffer; ++i)
 	{
 		float	sample = voices.nextSample();
+		audioBuffer.write(&sample, 1);
 		outputBuffer[i * 2] = sample;
 		outputBuffer[i * 2 + 1] = sample;
 	}

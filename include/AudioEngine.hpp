@@ -6,6 +6,7 @@
 # include <rtmidi/RtMidi.h>
 # include "VoiceManager.hpp"
 # include "TuningSys.hpp"
+# include "RingBuffer.hpp"
 
 using std::atomic;
 
@@ -14,8 +15,8 @@ class AudioEngine
 	public:
 
 
-		AudioEngine();
-		AudioEngine(float modulationIndex, float modulationRatio, string tuningFile, float baseFreq = 432.0f, int midiNoteOffset = 69);
+		AudioEngine(RingBuffer &buffer);
+		AudioEngine(RingBuffer &buffer, float modulationIndex, float modulationRatio, string tuningFile, float baseFreq = 432.0f, int midiNoteOffset = 69);
 		~AudioEngine();
 
 		bool	start();
@@ -34,6 +35,7 @@ class AudioEngine
 		RtMidiIn	midiIn;
 
 		VoiceManager	voices;
+		RingBuffer		&audioBuffer;
 
 		atomic<float>	modulationIndex;
 		atomic<float>	modulationRatio;
