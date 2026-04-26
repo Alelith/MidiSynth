@@ -22,8 +22,8 @@ class AudioEngine
 		bool	start();
 		bool	stop();
 
-		void	noteOn(float frequency, Waveform waveform = Waveform::SINE);
-		void	noteOff(float frequency);
+		void	noteOn(int midiNote, float frequency, Waveform waveform = Waveform::SINE);
+		void	noteOff(int midiNote);
 
 		void	setModulationIndex(float index);
 		void	setModulationRatio(float ratio);

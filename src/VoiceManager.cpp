@@ -54,8 +54,9 @@ void	Envelope::start()
 
 float	SynthVoice::nextSample() { return carrier.nextSample(modulator.nextSample() * modulationIndex) * env.nextAmplitude(1.0f / 88200.0f); }
 
-void	SynthVoice::noteOn(float modulationIndex, float modulationRatio, float frequency, float sampleRate, Waveform waveform)
+void	SynthVoice::noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, float sampleRate, Waveform waveform)
 {
+	this->midiNote = midiNote;
 	carrier = Oscilator(frequency, sampleRate, waveform);
 	modulator = Oscilator(frequency * modulationRatio, sampleRate, Waveform::SINE);
 	this->modulationIndex = modulationIndex;
@@ -68,34 +69,48 @@ VoiceManager::VoiceManager() : maxVoices(8), sampleRate(88200.0f) { voices.resiz
 
 VoiceManager::VoiceManager(int maxVoices, float sampleRate) : maxVoices(maxVoices), sampleRate(sampleRate) { voices.resize(maxVoices); }
 
-void	VoiceManager::noteOn(float modulationIndex, float modulationRatio, float frequency, Waveform waveform)
+VoiceManager::VoiceManager(const VoiceManager& other) : maxVoices(other.maxVoices), sampleRate(other.sampleRate)
 {
+	voices = other.voices;
+}
+
+VoiceManager& VoiceManager::operator=(const VoiceManager& other)
+{
+	if (this != &other)
+	{
+		maxVoices = other.maxVoices;
+		sampleRate = other.sampleRate;
+		voices = other.voices;
+	}
+	return *this;
+}
+
+void	VoiceManager::noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, Waveform waveform)
+{
+	lock_guard<mutex> lock(stateMutex);
 	for (int i = 0; i < maxVoices; i++)
 	{
 		if (voices[i].env.state == ADSRState::OFF)
 		{
-			voices[i].noteOn(modulationIndex, modulationRatio, frequency, sampleRate, waveform);
+			voices[i].noteOn(midiNote, modulationIndex, modulationRatio, frequency, sampleRate, waveform);
 			break;
 		}
 	}
 }
 
-void	VoiceManager::noteOff(float frequency)
+void	VoiceManager::noteOff(int midiNote)
 {
+	lock_guard<mutex> lock(stateMutex);
 	for (int i = 0; i < maxVoices; i++)
-	{
-		if (voices[i].carrier.getFrequency() == frequency && voices[i].env.state != ADSRState::OFF)
-		{
+		if (voices[i].midiNote == midiNote && (voices[i].env.state != ADSRState::OFF && voices[i].env.state != ADSRState::RELEASE))
 			voices[i].noteOff();
-			break;
-		}
-	}
 }
 
 float	VoiceManager::nextSample()
 {
 	float	sample = 0.0f;
 
+	lock_guard<mutex> lock(stateMutex);
 	for (int i = 0; i < maxVoices; ++i)
 		if (voices[i].env.state != ADSRState::OFF)
 			sample += voices[i].nextSample();

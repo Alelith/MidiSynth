@@ -66,9 +66,9 @@ bool	AudioEngine::stop()
 	return true;
 }
 
-void	AudioEngine::noteOn(float frequency, Waveform waveform) { voices.noteOn(modulationIndex.load(), modulationRatio.load(), frequency, waveform); }
+void	AudioEngine::noteOn(int midiNote, float frequency, Waveform waveform) { voices.noteOn(midiNote, modulationIndex.load(), modulationRatio.load(), frequency, waveform); }
 
-void	AudioEngine::noteOff(float frequency) { voices.noteOff(frequency); }
+void	AudioEngine::noteOff(int midiNote) { voices.noteOff(midiNote); }
 
 void	AudioEngine::setModulationIndex(float index) { modulationIndex.store(index); }
 
@@ -93,14 +93,11 @@ void	AudioEngine::midiCallback(double timeStamp, std::vector<unsigned char> *mes
 	if (status == 0x90 && velocity > 0) // Note On
 	{
 		float	frequency = engine->tuningSys.getFrequency(note);
-		std::cout << "Note On: " << (int)note << " Velocity: " << (int)velocity << " Frequency: " << frequency << " Hz" << std::endl;
-		engine->noteOn(frequency, Waveform::TRIANGLE);
+		engine->noteOn(note, frequency, Waveform::TRIANGLE);
 	}
 	else if ((status == 0x80) || (status == 0x90 && velocity == 0)) // Note Off
 	{
-		float	frequency = engine->tuningSys.getFrequency(note);
-		std::cout << "Note Off: " << (int)note << " Velocity: " << (int)velocity << " Frequency: " << frequency << " Hz" << std::endl;
-		engine->noteOff(frequency);
+		engine->noteOff(note);
 	}
 }
 
