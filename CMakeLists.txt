@@ -17,6 +17,7 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(RTMIDI REQUIRED rtmidi)
 pkg_check_modules(RAYLIB REQUIRED raylib)
+pkg_check_modules(FFTW3F REQUIRED fftw3f)
 
 # Definir nuestro ejecutable y sus archivos fuente
 add_executable(MicroSynth 
@@ -28,9 +29,18 @@ add_executable(MicroSynth
 	src/RingBuffer.cpp
 )
 
-# Enlazar nuestro ejecutable con la librería de PortAudio
-target_link_libraries(MicroSynth PRIVATE ${PORTAUDIO_LIB})
+target_include_directories(MicroSynth PRIVATE 
+    ${RTMIDI_INCLUDE_DIRS} 
+    ${RAYLIB_INCLUDE_DIRS}
+    ${FFTW3F_INCLUDE_DIRS} # <- NUEVO: Directorio de fftw3.h
+)
 
-# Reemplaza "tu_ejecutable" por el nombre real de tu proyecto en CMake
-target_include_directories(MicroSynth PRIVATE ${RTMIDI_INCLUDE_DIRS} ${RAYLIB_INCLUDE_DIRS})
-target_link_libraries(MicroSynth PRIVATE ${PORTAUDIO_LIB} ${RTMIDI_LIBRARIES} ${RAYLIB_LIBRARIES})
+# --- ENLACE DE LIBRERÍAS (.so / .a) ---
+# Unificamos todas las dependencias en una sola llamada limpia
+target_link_libraries(MicroSynth PRIVATE 
+    ${PORTAUDIO_LIB} 
+    ${RTMIDI_LIBRARIES} 
+    ${RAYLIB_LIBRARIES}
+    ${FFTW3F_LIBRARIES}    # <- NUEVO: Enlazamos el binario de fftw3f
+    m                      # <- NUEVO: Enlazamos la librería matemática estándar de C (necesaria para FFT y Raylib)
+)

@@ -93,7 +93,7 @@ void	AudioEngine::midiCallback(double timeStamp, std::vector<unsigned char> *mes
 	if (status == 0x90 && velocity > 0) // Note On
 	{
 		float	frequency = engine->tuningSys.getFrequency(note);
-		engine->noteOn(note, frequency, Waveform::TRIANGLE);
+		engine->noteOn(note, frequency, Waveform::SINE);
 	}
 	else if ((status == 0x80) || (status == 0x90 && velocity == 0)) // Note Off
 	{

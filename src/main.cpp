@@ -3,97 +3,135 @@
 #include <thread>
 #include <raylib.h>
 #include <cmath>
+#include <algorithm>
+#include <fftw3.h>
 
 int main()
 {
-	RingBuffer buffer;
-	AudioEngine au(buffer);
-	au.setModulationIndex(150);
-	au.setModulationRatio(1);
+	RingBuffer	buffer;
+	AudioEngine	au(buffer);
 	
-	InitWindow(800, 600, "FM Synthesizer");
-	SetTargetFPS(30);
+	au.setModulationIndex(200);
+	au.setModulationRatio(1.5);
+	
+	InitWindow(1920, 1080, "FM Synthesizer - FFTW Mandala");
+	SetTargetFPS(60);
 
-	float rotationOffset = 0.0f;
+	const int	FFT_SIZE = 1024;
+	float		tempBuffer[16384];
+
+	// --- 1. CONFIGURACIÓN DE FFTW (Precisión Simple 'float') ---
+	// Reservamos memoria para el input (tiempo) y el output (frecuencia)
+	float	*fft_in = (float*) fftwf_malloc(sizeof(float) * FFT_SIZE);
+	
+	// Una FFT de una señal real genera (N/2 + 1) números complejos
+	int		numBins = (FFT_SIZE / 2) + 1; 
+	fftwf_complex	*fft_out = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * numBins);
+	
+	// Creamos el plan. FFTW_ESTIMATE es ideal aquí porque analiza y arranca rápido.
+	fftwf_plan plan = fftwf_plan_dft_r2c_1d(FFT_SIZE, fft_in, fft_out, FFTW_ESTIMATE);
+
+	float	magnitudes[1024]; 
+	float	rotationOffset = 0.0f;
 
 	while (!WindowShouldClose())
 	{
-		float    samples[88200 / 30];
-		int      numSamples = buffer.read(samples, 88200 / 30);
+		int		samplesRead = buffer.read(tempBuffer, 16384);
+		int		drawCount = std::min(samplesRead, FFT_SIZE);
+		float	*audioData = tempBuffer + (samplesRead - drawCount);
 
+		// --- 2. PREPARAR EL BUFFER (VENTANA DE HANN) ---
+		for (int i = 0; i < FFT_SIZE; i++) 
+		{
+			if (i < drawCount)
+			{
+				float multiplier = 0.5f * (1.0f - std::cos(2.0f * M_PI * i / (FFT_SIZE - 1)));
+				fft_in[i] = audioData[i] * multiplier;
+			} else
+				fft_in[i] = 0.0f; // Zero-padding si no hay suficientes muestras
+		}
+
+		// --- 3. EJECUTAR LA MAGIA ---
+		fftwf_execute(plan);
+
+		// --- 4. CALCULAR LAS MAGNITUDES ---
+		for (int i = 0; i < numBins; i++) 
+		{
+			float real = fft_out[i][0];
+			float imag = fft_out[i][1];
+			// Teorema de Pitágoras. Dividimos por (FFT_SIZE / 2) para normalizar la amplitud.
+			magnitudes[i] = std::sqrt(real * real + imag * imag) / (FFT_SIZE / 2.0f);
+		}
+
+		// --- 5. DIBUJAR EL MANDALA ---
+		rotationOffset += 0.002f; // El mandala girará lentamente sobre sí mismo
+		
 		BeginDrawing();
 		ClearBackground(BLACK);
 
-		if (numSamples > 1) // Aseguramos que hay datos
+		int	centerX = GetScreenWidth() / 2;
+		int	centerY = GetScreenHeight() / 2;
+		
+		float	baseRadius = 130.0f;
+		float	maxRadius = 450.0f;
+		
+		// No mostramos todas las frecuencias porque las hiper-agudas suelen ser ruido blanco.
+		// Con un cuarto de los bins (resolución baja-media) se ve mucho más limpio.
+		int	displayBins = numBins / 4; 
+
+		Vector2	prevPointRight = {0,0};
+		Vector2	prevPointLeft = {0,0};
+
+		for (int i = 1; i < displayBins; i++)
 		{
-			// --- 1. ZERO-CROSSING (Sincronización) ---
-			int startIndex = 0;
-			// Buscamos un cruce de negativo a positivo en la primera parte del buffer
-			for (int i = 0; i < numSamples / 4; i++) {
-				if (samples[i] <= 0.0f && samples[i+1] > 0.0f) {
-					startIndex = i;
-					break;
+			// Mapeamos el espectro: graves arriba (0), agudos hacia abajo (PI)
+			float	fraction = (float)i / displayBins;
+			float	theta = fraction * M_PI;
+			
+			// Multiplicamos exageradamente porque los armónicos de FM tienen amplitudes muy bajas comparadas con la fundamental
+			//float	amp = magnitudes[i] * 400.0f;
+			float	amp = std::pow(magnitudes[i], 0.5f) * 800.0f;
+			//float	amp = std::log10(magnitudes[i] + 1.0f) * 500.0f;
+			float	r = baseRadius + std::min(amp, maxRadius - baseRadius);
+
+			// Simetría pura: Un lado suma el ángulo, el otro lo resta
+			float	finalThetaRight = theta + rotationOffset;
+			float 	finalThetaLeft  = -theta + rotationOffset;
+
+			// Calculamos X e Y (usamos sin para X y cos para Y para que el 0 quede arriba)
+			Vector2	currentPointRight = { centerX + r * std::sin(finalThetaRight), centerY - r * std::cos(finalThetaRight) };
+			Vector2 currentPointLeft = { centerX + r * std::sin(finalThetaLeft), centerY - r * std::cos(finalThetaLeft) };
+
+			if (i > 1)
+			{
+				// El color barre todo el arcoíris HSL (de rojo/graves a violeta/agudos)
+				float	hue = fraction * 300.0f; 
+				Color	lineColor = ColorFromHSV(hue, 0.9f, 0.9f);
+				
+				// Dibujamos el contorno de la onda en el mandala
+				DrawLineEx(prevPointRight, currentPointRight, 3.0f, lineColor);
+				DrawLineEx(prevPointLeft, currentPointLeft, 3.0f, lineColor);
+				
+				// Detalles visuales: Si una frecuencia salta con mucha fuerza, dibujamos un rayo translúcido desde el centro
+				if (amp > 15.0f)
+				{
+					DrawLine(centerX, centerY, currentPointRight.x, currentPointRight.y, Fade(lineColor, 0.15f));
+					DrawLine(centerX, centerY, currentPointLeft.x, currentPointLeft.y, Fade(lineColor, 0.15f));
 				}
 			}
 
-			// Descartamos las muestras previas al cruce por cero
-			int samplesToDraw = numSamples - startIndex;
-			
-			int centerX = GetScreenWidth() / 2;
-			int centerY = GetScreenHeight() / 2;
-			int lastX = -1;
-			int lastY = -1;
-			
-			// Reducimos la velocidad base de rotación para que sea más relajante
-			rotationOffset += 0.0; 
-
-			for (int i = 0; i < samplesToDraw; i++)
-			{
-				// --- 2. HANN WINDOW (Suavizado de la cicatriz) ---
-				// Calculamos el valor de la ventana para esta posición
-				float window = 0.5f * (1.0f - std::cos(2.0f * M_PI * i / (samplesToDraw - 1)));
-				
-				// Multiplicamos la muestra por la ventana
-				float smoothedSample = samples[startIndex + i] * window;
-
-				// El radio ahora usa la muestra suavizada
-				float radius = 150.0f + (smoothedSample * 250.0f); // Subí el multiplicador para más impacto
-				
-				// Repartimos el ángulo entre las muestras útiles
-				float angle = rotationOffset + ((float)i / (float)samplesToDraw * 2.0f * M_PI);
-				
-				int x = centerX + (int)(std::sin(angle) * radius);
-				int y = centerY + (int)(std::cos(angle) * radius);
-				
-				// El color también usa la muestra suavizada
-				float intensity = std::abs(smoothedSample);
-				if (intensity > 1.0f) intensity = 1.0f;
-
-				unsigned char r = (unsigned char)(138 + intensity * (255 - 138));
-				unsigned char g = (unsigned char)(43  + intensity * (255 - 43));
-				unsigned char b = (unsigned char)(226 + intensity * (0   - 226));
-				Color pointColor = { r, g, b, 255 };
-
-				if (lastX != -1 && lastY != -1)
-					DrawLine(lastX, lastY, x, y, pointColor);
-				else
-					DrawPixel(x, y, pointColor);
-					
-				lastX = x;
-				lastY = y;
-			}
-
-			// Al aplicar la ventana Hann, el primer y último punto de deformación siempre es 0.
-			// Por lo tanto, cerramos el círculo en el radio base exacto.
-			float firstRadius = 150.0f; 
-			float firstAngle = rotationOffset;
-			int firstX = centerX + (int)(std::sin(firstAngle) * firstRadius);
-			int firstY = centerY + (int)(std::cos(firstAngle) * firstRadius);
-			DrawLine(lastX, lastY, firstX, firstY, WHITE);
+			prevPointRight = currentPointRight;
+			prevPointLeft = currentPointLeft;
 		}
 
 		EndDrawing();
 	}
+
+	// --- 6. LIMPIEZA DE MEMORIA (¡Muy importante en C/C++!) ---
+	fftwf_destroy_plan(plan);
+	fftwf_free(fft_in);
+	fftwf_free(fft_out);
+	fftwf_cleanup();
 
 	CloseWindow();
 	return 0;
