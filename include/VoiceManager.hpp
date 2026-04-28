@@ -2,12 +2,9 @@
 # define VOICEMANAGER_HPP
 
 # include <vector>
-# include <mutex>
 # include "Oscilator.hpp"
 
 using std::vector;
-using std::mutex;
-using std::lock_guard;
 
 enum class ADSRState
 {
@@ -46,9 +43,10 @@ struct SynthVoice
 	Envelope	env;
 
 	int		midiNote;
+	float	velocity;
 
 	float	nextSample();
-	void	noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, float sampleRate, Waveform waveform = Waveform::SINE);
+	void	noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, float velocity, float sampleRate, Waveform waveform = Waveform::SINE);
 	void	noteOff();
 };
 
@@ -56,20 +54,17 @@ class VoiceManager
 {
 	public:
 		VoiceManager();
-		VoiceManager(int maxVoices, float sampleRate = 88200.0f);
-		VoiceManager(const VoiceManager&);
-		VoiceManager& operator=(const VoiceManager&);
+		VoiceManager(int maxVoices, float sampleRate = 44100.0f);
 		~VoiceManager() = default;
 
-		void	noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, Waveform waveform = Waveform::SINE);
+		void	noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, float velocity, Waveform waveform = Waveform::SINE);
 		void	noteOff(int midiNote);
 		float	nextSample();
 	private:
-		mutex				stateMutex;
 		vector<SynthVoice>	voices;
 		int					maxVoices;
 
-		float	sampleRate = 88200.0f;
+		float	sampleRate = 44100.0f;
 };
 
 #endif /* VOICEMANAGER_HPP */

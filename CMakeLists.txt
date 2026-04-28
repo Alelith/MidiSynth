@@ -27,6 +27,7 @@ add_executable(MicroSynth
 	src/VoiceManager.cpp
 	src/TuningSys.cpp
 	src/RingBuffer.cpp
+	src/MidiQueue.cpp
 )
 
 target_include_directories(MicroSynth PRIVATE 

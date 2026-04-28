@@ -15,7 +15,7 @@ bool	AudioEngine::start()
 	
 	Oscilator::initWaveTables();
 
-	voices = VoiceManager(8);
+	voices = VoiceManager(64, sampleRate);
 
 	midiIn.openVirtualPort("My Synth MIDI Input");
 	midiIn.setCallback(midiCallback, this);
@@ -66,7 +66,7 @@ bool	AudioEngine::stop()
 	return true;
 }
 
-void	AudioEngine::noteOn(int midiNote, float frequency, Waveform waveform) { voices.noteOn(midiNote, modulationIndex.load(), modulationRatio.load(), frequency, waveform); }
+void	AudioEngine::noteOn(int midiNote, float frequency, float velocity, Waveform waveform) { voices.noteOn(midiNote, modulationIndex.load(), modulationRatio.load(), frequency, velocity, waveform); }
 
 void	AudioEngine::noteOff(int midiNote) { voices.noteOff(midiNote); }
 
@@ -86,27 +86,51 @@ void	AudioEngine::midiCallback(double timeStamp, std::vector<unsigned char> *mes
 		return;
 
 	AudioEngine	*engine = static_cast<AudioEngine*>(userData);
-	unsigned char	status = message->at(0) & 0xF0;
+	unsigned char	statusByte = message->at(0);
+	unsigned char	status = statusByte & 0xF0;
+	unsigned char	channel = statusByte & 0x0F;
+
+	if (channel == 9) // Ignore percussion channel
+		return;
+
 	unsigned char	note = message->at(1);
 	unsigned char	velocity = message->at(2);
 
+	MidiEvent	ev;
+	ev.note = note;
+
 	if (status == 0x90 && velocity > 0) // Note On
 	{
-		float	frequency = engine->tuningSys.getFrequency(note);
-		engine->noteOn(note, frequency, Waveform::SINE);
+		ev.isOn = true;
+		ev.frequency = engine->tuningSys.getFrequency(note);
+
+		float velocityNorm = velocity / 127.0f;
+		ev.velocity = velocityNorm * velocityNorm; // Apply a simple curve for better expressiveness
+
+		engine->midiQueue.push(ev);
 	}
 	else if ((status == 0x80) || (status == 0x90 && velocity == 0)) // Note Off
 	{
-		engine->noteOff(note);
+		ev.isOn = false;
+		engine->midiQueue.push(ev);
 	}
 }
 
 int	AudioEngine::processAudio(float *outputBuffer, unsigned long framesPerBuffer)
 {
+	MidiEvent	ev;
+	while (midiQueue.pop(ev))
+	{
+		if (ev.isOn)
+			noteOn(ev.note, ev.frequency, ev.velocity, Waveform::SINE);
+		else
+			noteOff(ev.note);
+	}
+
 	for (unsigned long i = 0; i < framesPerBuffer; ++i)
 	{
 		float	sample = voices.nextSample();
-		sample *= 5.0f;
+		sample *= 7.0f;
 		sample = std::tanh(sample);
 		audioBuffer.write(&sample, 1);
 		outputBuffer[i * 2] = sample;

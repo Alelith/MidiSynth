@@ -11,14 +11,15 @@ int main()
 	RingBuffer	buffer;
 	AudioEngine	au(buffer);
 	
-	au.setModulationIndex(200);
-	au.setModulationRatio(1.5);
+	au.setModulationIndex(20);
+	au.setModulationRatio(2);
 	
 	InitWindow(1920, 1080, "FM Synthesizer - FFTW Mandala");
 	SetTargetFPS(60);
 
 	const int	FFT_SIZE = 1024;
 	float		tempBuffer[16384];
+	float		historyBuffer[FFT_SIZE] = {0.0f};
 
 	// --- 1. CONFIGURACIÓN DE FFTW (Precisión Simple 'float') ---
 	// Reservamos memoria para el input (tiempo) y el output (frecuencia)
@@ -37,18 +38,26 @@ int main()
 	while (!WindowShouldClose())
 	{
 		int		samplesRead = buffer.read(tempBuffer, 16384);
-		int		drawCount = std::min(samplesRead, FFT_SIZE);
-		float	*audioData = tempBuffer + (samplesRead - drawCount);
+		
+		// Añadir los nuevos samples al historial desplazando los antiguos
+		if (samplesRead > 0)
+		{
+			int newSamples = std::min(samplesRead, FFT_SIZE);
+			
+			// Desplazar muestras antiguas hacia la izquierda
+			for (int i = 0; i < FFT_SIZE - newSamples; i++)
+				historyBuffer[i] = historyBuffer[i + newSamples];
+				
+			// Copiar las nuevas muestras al final
+			for (int i = 0; i < newSamples; i++)
+				historyBuffer[(FFT_SIZE - newSamples) + i] = tempBuffer[samplesRead - newSamples + i];
+		}
 
 		// --- 2. PREPARAR EL BUFFER (VENTANA DE HANN) ---
 		for (int i = 0; i < FFT_SIZE; i++) 
 		{
-			if (i < drawCount)
-			{
-				float multiplier = 0.5f * (1.0f - std::cos(2.0f * M_PI * i / (FFT_SIZE - 1)));
-				fft_in[i] = audioData[i] * multiplier;
-			} else
-				fft_in[i] = 0.0f; // Zero-padding si no hay suficientes muestras
+			float multiplier = 0.5f * (1.0f - std::cos(2.0f * M_PI * i / (FFT_SIZE - 1)));
+			fft_in[i] = historyBuffer[i] * multiplier;
 		}
 
 		// --- 3. EJECUTAR LA MAGIA ---

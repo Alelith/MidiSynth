@@ -52,11 +52,12 @@ void	Envelope::start()
 	lastAmplitude = 0.0f;
 }
 
-float	SynthVoice::nextSample() { return carrier.nextSample(modulator.nextSample() * modulationIndex) * env.nextAmplitude(1.0f / 88200.0f); }
+float	SynthVoice::nextSample() { return carrier.nextSample(modulator.nextSample() * modulationIndex) * env.nextAmplitude(1.0f / 44100.0f) * velocity; }
 
-void	SynthVoice::noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, float sampleRate, Waveform waveform)
+void	SynthVoice::noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, float velocity, float sampleRate, Waveform waveform)
 {
 	this->midiNote = midiNote;
+	this->velocity = velocity;
 	carrier = Oscilator(frequency, sampleRate, waveform);
 	modulator = Oscilator(frequency * modulationRatio, sampleRate, Waveform::SINE);
 	this->modulationIndex = modulationIndex;
@@ -65,42 +66,41 @@ void	SynthVoice::noteOn(int midiNote, float modulationIndex, float modulationRat
 
 void	SynthVoice::noteOff() { env.state = ADSRState::RELEASE; env.currentTime = 0.0f; env.lastAmplitude = env.currentAmplitude; }
 
-VoiceManager::VoiceManager() : maxVoices(8), sampleRate(88200.0f) { voices.resize(maxVoices); }
+VoiceManager::VoiceManager() : maxVoices(8), sampleRate(44100.0f) { voices.resize(maxVoices); }
 
 VoiceManager::VoiceManager(int maxVoices, float sampleRate) : maxVoices(maxVoices), sampleRate(sampleRate) { voices.resize(maxVoices); }
 
-VoiceManager::VoiceManager(const VoiceManager& other) : maxVoices(other.maxVoices), sampleRate(other.sampleRate)
+void	VoiceManager::noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, float velocity, Waveform waveform)
 {
-	voices = other.voices;
-}
-
-VoiceManager& VoiceManager::operator=(const VoiceManager& other)
-{
-	if (this != &other)
-	{
-		maxVoices = other.maxVoices;
-		sampleRate = other.sampleRate;
-		voices = other.voices;
-	}
-	return *this;
-}
-
-void	VoiceManager::noteOn(int midiNote, float modulationIndex, float modulationRatio, float frequency, Waveform waveform)
-{
-	lock_guard<mutex> lock(stateMutex);
 	for (int i = 0; i < maxVoices; i++)
 	{
 		if (voices[i].env.state == ADSRState::OFF)
 		{
-			voices[i].noteOn(midiNote, modulationIndex, modulationRatio, frequency, sampleRate, waveform);
-			break;
+			voices[i].noteOn(midiNote, modulationIndex, modulationRatio, frequency, velocity, sampleRate, waveform);
+			return;
 		}
 	}
+
+	int		oldestVoiceIndex = 0;
+	float	maxTime = -1.0f;
+	for (int i = 0; i < maxVoices; i++)
+	{
+		if (voices[i].env.state == ADSRState::RELEASE)
+		{
+			oldestVoiceIndex = i;
+			break;
+		}
+		if (voices[i].env.currentTime > maxTime)
+		{
+			maxTime = voices[i].env.currentTime;
+			oldestVoiceIndex = i;
+		}
+	}
+	voices[oldestVoiceIndex].noteOn(midiNote, modulationIndex, modulationRatio, frequency, velocity, sampleRate, waveform);
 }
 
 void	VoiceManager::noteOff(int midiNote)
 {
-	lock_guard<mutex> lock(stateMutex);
 	for (int i = 0; i < maxVoices; i++)
 		if (voices[i].midiNote == midiNote && (voices[i].env.state != ADSRState::OFF && voices[i].env.state != ADSRState::RELEASE))
 			voices[i].noteOff();
@@ -110,7 +110,6 @@ float	VoiceManager::nextSample()
 {
 	float	sample = 0.0f;
 
-	lock_guard<mutex> lock(stateMutex);
 	for (int i = 0; i < maxVoices; ++i)
 		if (voices[i].env.state != ADSRState::OFF)
 			sample += voices[i].nextSample();

@@ -31,7 +31,7 @@ class Oscilator
 		double		phase;
 		Waveform	waveform;
 
-		static map<Waveform, vector<float>>	waveTables;
+		static vector<float> waveTables[4];
 };
 
 #endif /* OSCILATOR_HPP */

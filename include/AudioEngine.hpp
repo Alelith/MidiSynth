@@ -7,6 +7,7 @@
 # include "VoiceManager.hpp"
 # include "TuningSys.hpp"
 # include "RingBuffer.hpp"
+# include "MidiQueue.hpp"
 
 using std::atomic;
 
@@ -22,20 +23,21 @@ class AudioEngine
 		bool	start();
 		bool	stop();
 
-		void	noteOn(int midiNote, float frequency, Waveform waveform = Waveform::SINE);
+		void	noteOn(int midiNote, float frequency, float velocity, Waveform waveform = Waveform::SINE);
 		void	noteOff(int midiNote);
 
 		void	setModulationIndex(float index);
 		void	setModulationRatio(float ratio);
 	private:
 		PaStream	*stream;
-		float		sampleRate = 88200.0f;
+		float		sampleRate = 44100.0f;
 		TuningSys	tuningSys;
 
 		RtMidiIn	midiIn;
 
 		VoiceManager	voices;
 		RingBuffer		&audioBuffer;
+		MidiQueue		midiQueue;
 
 		atomic<float>	modulationIndex;
 		atomic<float>	modulationRatio;

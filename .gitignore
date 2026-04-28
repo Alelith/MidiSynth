@@ -6,3 +6,8 @@ MicroSynth
 
 .vscode/
 CMakeFiles/
+
+.venv/
+
+*.py
+*.mid
