@@ -1,14 +1,46 @@
+/**
+ * @file TuningSys.cpp
+ * @brief Implementation of the microtonal scaling architecture
+ * 
+ * @author Lilith Estévez Boeta
+ * @date 2026-04-28
+ */
+
 #include "TuningSys.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>
 
+/**
+ * @brief Constructs a default TuningSys with standard equal temperament
+ * 
+ * @details Generates a full 128-element MIDI array mapped using the
+ * traditional 12-Tone Equal Temperament mathematical sequence based
+ * around the default base frequency.
+ * 
+ * @ingroup tuning_module
+ */
 TuningSys::TuningSys()
 {
 	for (int note = 0; note < 128; ++note)
 			notes.push_back(baseFrequency * std::pow(2.0f, (note - midiNoteOffset) / 12.0f));
 }
 
+/**
+ * @brief Constructs a Custom TuningSys derived from a Scala configuration
+ * 
+ * @details Reads and parses a standard .scl format file determining
+ * relative mathematical ratios for notes in relation to the defined 
+ * base frequency and corresponding MIDI anchor. It then extrapolates
+ * valid pitch lengths mapping every defined cycle repetition across
+ * the whole MIDI range.
+ * 
+ * @ingroup tuning_module
+ * 
+ * @param[in] tuningFile Relative or absolute path to a .scl Scala file
+ * @param[in] baseFreq The absolute hertz value for the tuning origin
+ * @param[in] midiNoteOffset The standard MIDI index matching the origin 
+ */
 TuningSys::TuningSys(string tuningFile, float baseFreq, int midiNoteOffset) : baseFrequency(baseFreq), midiNoteOffset(midiNoteOffset)
 {
 	std::ifstream	file(tuningFile);
@@ -59,8 +91,28 @@ TuningSys::TuningSys(string tuningFile, float baseFreq, int midiNoteOffset) : ba
 	}
 }
 
+/**
+ * @brief Default destructor for the TuningSys object
+ * 
+ * @details Implicitly releases dynamically allocated table memory vectors
+ * containing calculated frequency bounds.
+ * 
+ * @ingroup tuning_module
+ */
 TuningSys::~TuningSys() {}
 
+/**
+ * @brief Retrieves the pre-calculated target frequency for a MIDI event
+ * 
+ * @details Safely bounds-checks the incoming key index map and returns
+ * the pre-populated static float representation for the internal oscillator.
+ * 
+ * @ingroup tuning_module
+ * 
+ * @param[in] note The numerical standard MIDI note key query (0 - 127)
+ * @return The target ideal floating-point pitch value in Hz
+ * @retval 0.0f Query falls out of the valid lookup array bound
+ */
 float	TuningSys::getFrequency(int note) const
 {
 	if (note < 0 || note >= static_cast<int>(notes.size()))
